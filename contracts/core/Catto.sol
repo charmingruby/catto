@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 contract Catto is ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Burnable {
     uint private _tokenIdCounter;
 
-    constructor() ERC721("Catto", "CAT") {}
+    constructor() ERC721("Catto", "CTT") {}
 
     function tokenURI(
         uint256 tokenId
