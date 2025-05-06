@@ -6,9 +6,9 @@
 	"scripts": {
 		"start": "npx hardhat node",
 		"test": "npx hardhat test",
+		"test:coverage": "npx hardhat coverage",
 		"format": "npx biome format --write .",
 		"compile": "npx hardhat compile",
-		"coverage": "npx hardhat coverage",
 		"deploy:dev": "npx hardhat ignition deploy ignition/modules/Consensus.ts --network local",
 		"deploy:sepolia": "npx hardhat ignition deploy ignition/modules/Consensus.ts --network sepolia"
 	},
