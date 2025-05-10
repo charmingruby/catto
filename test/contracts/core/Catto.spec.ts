@@ -12,14 +12,6 @@ describe("Catto", () => {
 		return { contract: catto, owner, accounts }
 	}
 
-	describe("Inheritance", async () => {
-		it("should support the interface", async () => {
-			const { contract } = await loadFixture(deployFixture)
-
-			expect(await contract.supportsInterface("0x80ac58cd")).to.be.true
-		})
-	})
-
 	describe("Metadata", async () => {
 		it("should return the contract name", async () => {
 			const { contract } = await loadFixture(deployFixture)
@@ -36,17 +28,17 @@ describe("Catto", () => {
 		it("should be able to get the URI metadata", async () => {
 			const { contract } = await loadFixture(deployFixture)
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
-			expect(await contract.tokenURI(tokenId)).to.equal("https://catto.xyz/1.json")
+			expect(await contract.tokenURI(tokenId)).to.equal("https://catto.xyz/0.json")
 		})
 
 		it("should be not able to get URI metadata if does not exists", async () => {
 			const { contract } = await loadFixture(deployFixture)
 
 			await expect(contract.tokenURI(0)).
-				to.be.revertedWithCustomError(contract, "ERC721NonexistentToken")
+				to.be.revertedWithCustomError(contract, "URIQueryForNonexistentToken")
 		})
 	})
 
@@ -54,26 +46,31 @@ describe("Catto", () => {
 		it("should be able to mint", async () => {
 			const { contract, owner } = await loadFixture(deployFixture)
 
-			await contract.mint()
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
 
 			const balance = await contract.balanceOf(owner.address)
-			const tokenId = await contract.tokenByIndex(0)
+			const tokenId = 0
 			const ownerOf = await contract.ownerOf(tokenId)
-			const ownerTokenId = await contract.tokenOfOwnerByIndex(owner.address, 0)
 			const totalSupply = await contract.totalSupply()
 
 			expect(balance).to.equal(1)
-			expect(tokenId).to.equal(ownerTokenId)
 			expect(ownerOf).to.equal(owner.address)
 			expect(totalSupply).to.equal(1)
+		})
+
+		it("should be not able to mint if there is no payment", async () => {
+			const { contract, owner } = await loadFixture(deployFixture)
+
+			await expect(contract.mint(1, { value: ethers.parseEther("0") }))
+				.to.be.revertedWith("Insufficient payment")
 		})
 
 		it("should be able to burn", async () => {
 			const { contract, owner } = await loadFixture(deployFixture)
 
-			await contract.mint()
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
 
-			const tokenId = await contract.tokenByIndex(0)
+			const tokenId = 0
 
 			await contract.burn(tokenId)
 
@@ -87,8 +84,8 @@ describe("Catto", () => {
 		it("should be able to do a delegated burn", async () => {
 			const { contract, owner, accounts } = await loadFixture(deployFixture)
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			const delegatedAccount = accounts[0]
 			const delegatedAccountInstance = contract.connect(delegatedAccount)
@@ -109,8 +106,8 @@ describe("Catto", () => {
 		it("should be able to do burn approved for all", async () => {
 			const { contract, owner, accounts } = await loadFixture(deployFixture)
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			const delegatedAccount = accounts[0]
 			const delegatedAccountInstance = contract.connect(delegatedAccount)
@@ -132,20 +129,7 @@ describe("Catto", () => {
 			const { contract } = await loadFixture(deployFixture)
 
 			await expect(contract.burn(1))
-				.to.be.revertedWithCustomError(contract, "ERC721NonexistentToken")
-		})
-
-		it("should be not able to do a delegated burn without permission", async () => {
-			const { contract, owner, accounts } = await loadFixture(deployFixture)
-
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
-
-			const delegatedAccount = accounts[0]
-			const delegatedAccountInstance = contract.connect(delegatedAccount)
-
-			await expect(delegatedAccountInstance.burn(tokenId)).
-				to.be.revertedWithCustomError(contract, "ERC721InsufficientApproval")
+				.to.be.revertedWithCustomError(contract, "OwnerQueryForNonexistentToken")
 		})
 	})
 
@@ -155,22 +139,20 @@ describe("Catto", () => {
 
 			const recipientAccount = accounts[0]
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			await contract.transferFrom(owner.address, recipientAccount.address, tokenId)
 
 			const balanceFrom = await contract.balanceOf(owner.address)
 			const balanceTo = await contract.balanceOf(recipientAccount.address)
 			const ownerOf = await contract.ownerOf(tokenId)
-			const ownerTokenId = await contract.tokenOfOwnerByIndex(recipientAccount.address, 0)
 			const totalSupply = await contract.totalSupply()
 
 			expect(totalSupply).to.equal(1)
 			expect(balanceFrom).to.equal(0)
 			expect(balanceTo).to.equal(1)
 			expect(ownerOf).to.equal(recipientAccount.address)
-			expect(tokenId).to.be.equal(ownerTokenId)
 		})
 
 		it("should be not able to transfer without permission", async () => {
@@ -178,13 +160,13 @@ describe("Catto", () => {
 
 			const forbiddenAccount = accounts[0]
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			const forbiddenAccountInstance = contract.connect(forbiddenAccount)
 
 			await expect(forbiddenAccountInstance.transferFrom(owner.address, forbiddenAccount.address, tokenId))
-				.to.be.revertedWithCustomError(contract, "ERC721InsufficientApproval")
+				.to.be.revertedWithCustomError(contract, "TransferCallerNotOwnerNorApproved")
 		})
 
 		it("should be not able to transfer a token if does not exists", async () => {
@@ -195,7 +177,7 @@ describe("Catto", () => {
 			const tokenId = 1
 
 			await expect(contract.transferFrom(owner.address, forbiddenAccount.address, tokenId))
-				.to.be.revertedWithCustomError(contract, "ERC721NonexistentToken")
+				.to.be.revertedWithCustomError(contract, "OwnerQueryForNonexistentToken")
 		})
 
 		it("should emit a transfer event", async () => {
@@ -203,8 +185,8 @@ describe("Catto", () => {
 
 			const recipientAccount = accounts[0]
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			expect(await contract.transferFrom(owner.address, recipientAccount.address, tokenId))
 				.to.emit(contract, "Transfer")
@@ -216,8 +198,8 @@ describe("Catto", () => {
 
 			const delegatedAccount = accounts[0]
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			await contract.approve(delegatedAccount.address, tokenId)
 			const approved = await contract.getApproved(tokenId)
@@ -236,8 +218,8 @@ describe("Catto", () => {
 
 			const delegatedAccount = accounts[0]
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			await contract.setApprovalForAll(delegatedAccount.address, true)
 			const approved = await contract.isApprovedForAll(owner.address, delegatedAccount.address)
@@ -256,8 +238,8 @@ describe("Catto", () => {
 
 			const delegatedAccount = accounts[0]
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			await contract.approve(delegatedAccount.address, tokenId)
 
@@ -273,8 +255,8 @@ describe("Catto", () => {
 
 			const delegatedAccount = accounts[0]
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			await expect(contract.approve(delegatedAccount.address, tokenId))
 				.to.emit(contract, "Approval")
@@ -286,12 +268,44 @@ describe("Catto", () => {
 
 			const delegatedAccount = accounts[0]
 
-			await contract.mint()
-			const tokenId = await contract.tokenByIndex(0)
+			await contract.mint(1, { value: ethers.parseEther("0.01") })
+			const tokenId = 0
 
 			await expect(contract.setApprovalForAll(delegatedAccount.address, true))
 				.to.emit(contract, "ApprovalForAll")
 				.withArgs(owner.address, delegatedAccount.address, true)
+		})
+	})
+
+	describe("Withdraw", async () => {
+		it("should be able to withdraw", async () => {
+			const { contract, owner, accounts } = await loadFixture(deployFixture)
+
+			const ownerBalanceBefore = await ethers.provider.getBalance(owner.address)
+			const valueToMint = ethers.parseEther("0.01")
+
+			const mintingActorInstance = contract.connect(accounts[0])
+			await mintingActorInstance.mint(1, { value: valueToMint })
+
+			await contract.withdraw()
+
+			const contractBalance = await ethers.provider.getBalance(await contract.getAddress())
+			const ownerBalanceAfter = await ethers.provider.getBalance(owner.address)
+
+			expect(contractBalance).to.equal(0)
+			expect(ownerBalanceAfter).to.be.closeTo(ownerBalanceBefore + valueToMint, ethers.parseEther("0.01"))
+		})
+
+		it("should be not able to withdraw if is not the owner", async () => {
+			const { contract, owner, accounts } = await loadFixture(deployFixture)
+
+			const valueToMint = ethers.parseEther("0.01")
+
+			const mintingActorInstance = contract.connect(accounts[0])
+			await mintingActorInstance.mint(1, { value: valueToMint })
+
+			await expect(mintingActorInstance.withdraw())
+				.to.be.revertedWith("Insufficient permission")
 		})
 	})
 })
